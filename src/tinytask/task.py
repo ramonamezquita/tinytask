@@ -1,10 +1,6 @@
-"""
-Inspired by celery.canvas and celery.task
-"""
-
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence
+from typing import Any, Callable
 
 from tinytask.callbacks import Callback, check_is_callback
 
@@ -92,65 +88,16 @@ def task_from_callable(
     return TaskWrapper()
 
 
-class Signature:
-    """Placeholder for task and its parameters.
-
-    Parameters
-    ----------
-    name : Task
-        Task instance to run.
-
-    args : tuple, default=()
-        Task positional arguments.
-
-    kwargs : dict, default=None
-        Task key-word arguments.
-    """
-
-    def __init__(
-        self,
-        task: Task,
-        args: tuple = (),
-        kwargs: dict | None = None,
-    ):
-
-        self.task = task
-        self.args = args
-        self.kwargs = kwargs or {}
-
-    def __call__(self):
-        return self.task(*self.args, **self.kwargs)
-
-    def trace(self):
-        return self.task.trace(args=self.args, kwargs=self.kwargs)
-
-    def insert_arg(self, value: Any) -> None:
-        """Inserts `arg` at beggining of `args` attribute.
-
-        Parameters
-        ----------
-        value : Any
-            Value to insert.
-        """
-        self.args = (value,) + self.args
-
-    def insert_kwarg(
-        self, key: str, value: Any, overwrite: bool = True
-    ) -> None:
-        """Updates kwargs with the given key:value.
-
-        Set `overwrite=False` to preserve existing values
-        """
-        if overwrite or key not in self.kwargs:
-            self.kwargs[key] = value
-
-
 class Task:
     """Task base class."""
 
-    def __init__(self, name: str):
+    def __init__(
+        self,
+        name: str | None = None,
+        callbacks: list[Callback] = (),
+    ):
         self.name = name
-        self._callbacks: Sequence[Callback] = ()
+        self.callbacks = callbacks
 
     def run(self, *args, **kwargs):
         """The body of the task executed by workers."""
@@ -177,23 +124,20 @@ class Task:
     def __call__(self, *args, **kwargs):
         return self.run(*args, **kwargs)
 
-    def s(self, *args, **kwargs) -> Signature:
-        return Signature(task=self, args=args, kwargs=kwargs)
-
     def notify(self, method_name: str, **kwargs) -> None:
         for cb in self._callbacks:
             getattr(cb, method_name)(**kwargs)
 
     @property
-    def callbacks(self) -> Sequence[Callback]:
+    def callbacks(self) -> list[Callback]:
         return self._callbacks
 
     @callbacks.setter
-    def callbacks(self, value: Sequence[Callback]) -> None:
+    def callbacks(self, value) -> None:
         for cb in value:
             check_is_callback(cb)
         self._callbacks = value
 
-    def set_callbacks(self, callbacks: Sequence[Callback]):
+    def set_callbacks(self, callbacks):
         self.callbacks = callbacks
         return self
