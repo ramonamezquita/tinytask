@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from functools import reduce
 from typing import Any, Callable
 
 
@@ -9,18 +10,25 @@ class Ops(Enum):
     VOID = auto()
     CONST = auto()
     CALL = auto()
-    OR = auto()
+    COMPOSE = auto()
 
 
 # fmt: off
 def void(arg: tuple, src: list[NOp]): return None
 def const(arg: tuple, src: list[NOp]) -> NOp: return NOp(Ops.VOID)
-def call(arg: tuple, src: list[NOp]) -> NOp: return NOp(Ops.CONST, arg(*(s.arg for s in src)))
+def call(arg: tuple, src: list[NOp], op: Ops = Ops.VOID) -> NOp: return NOp(op, arg(*(s.arg for s in src)))
+
+def compose(arg: tuple, src: list[NOp]) -> NOp:
+    initial_value = arg
+    retval = reduce(lambda x, fxn: fxn(x), (s.arg for s in src), initial_value)
+    return NOp(src[-1].op, retval)
+
 
 _OP_TO_FXN = {
     Ops.VOID: void,
     Ops.CONST: const,
-    Ops.CALL: call
+    Ops.CALL: call,
+    Ops.COMPOSE: compose,
 }
 # fmt: on
 
@@ -85,9 +93,13 @@ class NOp:
     op: Ops
     arg: tuple = ()
     src: list[NOp] | None = None
+    result : Any = None
 
     def is_leaf(self) -> bool:
         return self.src is None or not self.src
 
     def eval(self) -> NOp:
-        return _OP_TO_FXN[self.op](self.arg, self.src)
+        if self.result is None:
+            self.result = _OP_TO_FXN[self.op](self.arg, self.src)
+        
+        return self.result
