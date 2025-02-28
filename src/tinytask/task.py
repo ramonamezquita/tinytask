@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Callable
 
 from tinytask.callbacks import Callback, check_is_callback
+from tinytask.ops import NOp, Ops, recursive_eval
+
+
+def task_to_nop(task: Task, *args) -> NOp:
+    """Wraps a task inside an NOp node."""
+    return NOp(Ops.CALL, task.trace, [NOp(Ops.CONST, arg) for arg in args])
 
 
 def check_is_task(o: object) -> None:
@@ -88,6 +95,42 @@ def task_from_callable(
     return TaskWrapper()
 
 
+class Signature:
+
+    def __init__(
+        self,
+        fxn: Callable[..., Any] = None,
+        args: tuple = (),
+        kwargs: dict | None = None,
+        n: NOp | None = None,
+    ):
+        self.fxn = fxn
+        self.args = tuple(args) if isinstance(args, (tuple, list)) else (args,)
+        self.kwargs = kwargs or {}
+        self.n = n
+
+    def node(self) -> NOp:
+
+        def wrapper(*args) -> Any:
+            return self.fxn(*(args + self.args), **self.kwargs)
+
+        return self.n or NOp(Ops.CALL, wrapper)
+
+    def __call__(self, *args):
+        return recursive_eval(self.node())
+
+    def __or__(self, other: Signature) -> Signature:
+        """Implements function composition using the `|` operator."""
+        if not isinstance(other, Signature):
+            raise TypeError(
+                f"Cannot compose Signature with {type(other).__name__}"
+            )
+
+        n = NOp(Ops.COMPOSE, src=[self.node(), other.node()])
+        return Signature(n=n)
+
+
+@dataclass
 class Task:
     """Task base class."""
 
@@ -99,9 +142,16 @@ class Task:
         self.name = name
         self.callbacks = callbacks
 
+    @classmethod
+    def from_callable(cls, fun: Callable[..., Any], name: str | None = None):
+        return task_from_callable(fun, name)
+
     def run(self, *args, **kwargs):
         """The body of the task executed by workers."""
         raise NotImplementedError("Tasks must define the `run` method.")
+
+    def s(self, args: tuple = (), kwargs: dict | None = None) -> Signature:
+        return Signature(self.trace, args, kwargs)
 
     def trace(self, args: tuple = (), kwargs: dict | None = None) -> Any:
         """Runs the task using a tracer object.

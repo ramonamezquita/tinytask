@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
 from functools import reduce
-from typing import Any, Callable
 
 
+# --- Operation Types ---
 class Ops(Enum):
     VOID = auto()
     CONST = auto()
@@ -13,57 +13,44 @@ class Ops(Enum):
     COMPOSE = auto()
 
 
-# fmt: off
-def void(arg: tuple, src: list[NOp]): return None
-def const(arg: tuple, src: list[NOp]) -> NOp: return NOp(Ops.VOID)
-def call(arg: tuple, src: list[NOp], op: Ops = Ops.VOID) -> NOp: return NOp(op, arg(*(s.arg for s in src)))
+#  --- Operation Functions ---
+
+
+def void(arg: tuple, src: list[NOp]):
+    return None
+
+
+def const(arg: tuple, src: list[NOp]) -> NOp:
+    return NOp(Ops.VOID)
+
+
+def call(arg: tuple, src: list[NOp]) -> NOp:
+    retval = arg(*(s.arg for s in src))
+    return NOp(Ops.CALL if callable(retval) else Ops.CONST, retval)
+
 
 def compose(arg: tuple, src: list[NOp]) -> NOp:
     initial_value = arg
-    retval = reduce(lambda x, fxn: fxn(x), (s.arg for s in src), initial_value)
-    return NOp(src[-1].op, retval)
+
+    def wrapper(x, y):
+        x = tuple(x) if isinstance(x, (tuple, list)) else (x,)
+        return y(*x)
+
+    retval = reduce(wrapper, (s.arg for s in src), initial_value)
+    return NOp(Ops.CONST, retval)
 
 
+# --- Operation Mapping ---
 _OP_TO_FXN = {
     Ops.VOID: void,
     Ops.CONST: const,
     Ops.CALL: call,
     Ops.COMPOSE: compose,
 }
-# fmt: on
-
-
-@dataclass
-class LazyCallable:
-    """Placeholder for a callable and its parameters.
-
-    Parameters
-    ----------
-    fxn : Callable
-        Callable.
-
-    args : tuple, default=()
-        Task positional arguments.
-
-    kwargs : dict, default=None
-        Task key-word arguments.
-    """
-
-    fxn: Callable
-    args: tuple = ()
-    kwargs: dict = field(default_factory=dict)
-
-    def __post_init__(self):
-        # Ensure args is always a tuple
-        if not isinstance(self.args, (tuple, list)):
-            self.args = (self.args,) if self.args else ()
-
-    def __call__(self, *args) -> Any:
-        args = args + self.args
-        return self.fxn(*args, **self.kwargs)
 
 
 def recursive_eval(n: NOp) -> NOp:
+    """Bottom-up evaluation."""
 
     if n.is_leaf():
         return n
@@ -92,14 +79,10 @@ class NOp:
 
     op: Ops
     arg: tuple = ()
-    src: list[NOp] | None = None
-    result : Any = None
+    src: list[NOp] | None = ()
 
     def is_leaf(self) -> bool:
         return self.src is None or not self.src
 
     def eval(self) -> NOp:
-        if self.result is None:
-            self.result = _OP_TO_FXN[self.op](self.arg, self.src)
-        
-        return self.result
+        return _OP_TO_FXN[self.op](self.arg, self.src)
