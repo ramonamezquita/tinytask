@@ -147,10 +147,10 @@ class Task:
         raise NotImplementedError("Tasks must define the `run` method.")
 
     def s(self, args: tuple = (), kwargs: dict | None = None) -> Signature:
-        return Signature(self.trace, args, kwargs)
+        return Signature(self.apply, args, kwargs)
 
-    def trace(self, args: tuple = (), kwargs: dict | None = None) -> Any:
-        """Runs the task using a tracer object.
+    def apply(self, args: tuple = (), kwargs: dict | None = None) -> Any:
+        """Runs the task.
 
         Parameters
         ----------

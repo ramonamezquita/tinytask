@@ -22,7 +22,7 @@ def test_call_is_special_case_of_compose():
     double = NOp(Ops.CALL, arg=lambda x: 2 * x)
     n = NOp(Ops.COMPOSE, arg=(5,), src=[double])
     n = recursive_eval(n)
-    assert n.arg == 10
+    assert n.eval().arg == 10
 
 
 def test_compose_1():
@@ -31,4 +31,4 @@ def test_compose_1():
     triple = NOp(Ops.CALL, lambda x: 3 * x)
     double_then_triple = NOp(Ops.COMPOSE, arg=10, src=[double, triple])
     n = recursive_eval(double_then_triple)
-    assert n.arg == 60
+    assert n.eval().arg == 60
