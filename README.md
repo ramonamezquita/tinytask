@@ -1,4 +1,4 @@
-# tinytask
+# tinytask: minimal task manager
 
 ## Computation Graph and Task Execution Framework
 
