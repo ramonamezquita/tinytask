@@ -5,15 +5,13 @@ from enum import Enum, auto
 from functools import reduce
 
 
-# --- Operation Types ---
 class Ops(Enum):
+    """Available operations."""
+
     VOID = auto()
     CONST = auto()
     CALL = auto()
     COMPOSE = auto()
-
-
-#  --- Operation Functions ---
 
 
 def void(arg: tuple, src: list[NOp]):
@@ -36,11 +34,12 @@ def compose(arg: tuple, src: list[NOp]) -> NOp:
         x = tuple(x) if isinstance(x, (tuple, list)) else (x,)
         return y(*x)
 
-    retval = reduce(wrapper, (s.arg for s in src), initial_value)
-    return NOp(Ops.CONST, retval)
+    def composition():
+        return reduce(wrapper, (s.arg for s in src), initial_value)
+
+    return NOp(Ops.CALL, composition)
 
 
-# --- Operation Mapping ---
 _OP_TO_FXN = {
     Ops.VOID: void,
     Ops.CONST: const,

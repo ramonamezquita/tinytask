@@ -7,11 +7,6 @@ from tinytask.callbacks import Callback, check_is_callback
 from tinytask.ops import NOp, Ops, recursive_eval
 
 
-def task_to_nop(task: Task, *args) -> NOp:
-    """Wraps a task inside an NOp node."""
-    return NOp(Ops.CALL, task.trace, [NOp(Ops.CONST, arg) for arg in args])
-
-
 def check_is_task(o: object) -> None:
     if not isinstance(o, Task):
         raise TypeError(f"Expected a Task instance, got {type(o).__name__}.")
@@ -109,6 +104,7 @@ class Signature:
         self.kwargs = kwargs or {}
         self.n = n
 
+    @property
     def node(self) -> NOp:
 
         def wrapper(*args) -> Any:
@@ -117,7 +113,7 @@ class Signature:
         return self.n or NOp(Ops.CALL, wrapper)
 
     def __call__(self, *args):
-        return recursive_eval(self.node())
+        return recursive_eval(self.node)
 
     def __or__(self, other: Signature) -> Signature:
         """Implements function composition using the `|` operator."""
@@ -126,7 +122,7 @@ class Signature:
                 f"Cannot compose Signature with {type(other).__name__}"
             )
 
-        n = NOp(Ops.COMPOSE, src=[self.node(), other.node()])
+        n = NOp(Ops.COMPOSE, src=[self.node, other.node])
         return Signature(n=n)
 
 
