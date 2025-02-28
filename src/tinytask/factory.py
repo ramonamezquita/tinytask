@@ -15,11 +15,11 @@ class Factory:
     def add_registry(self, registry: Registry):
         self._registry.merge(registry)
 
-    def create_many(self, objects: list[M.Generic]) -> list[Any]:
+    def create_many(self, objects: list[dict]) -> list[Any]:
         many = []
 
         for o in objects:
-            many.append(self.create(name=o.name, **o.args))
+            many.append(self.create(name=o["name"], **o["args"]))
 
         return many
 

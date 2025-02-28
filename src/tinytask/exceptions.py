@@ -28,5 +28,6 @@ class BaseError(Exception):
 class InvalidNamespace(BaseError):
     fmt = "Module '{}' does not have required attribute: '{attr}'"
 
+
 class BinaryOperationError(BaseError):
     fmt = "Binary operation '{op}' requires only 2 inputs. Instead got '{n}'."

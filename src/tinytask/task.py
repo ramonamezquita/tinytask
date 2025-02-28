@@ -19,7 +19,7 @@ def gen_task_name(name: str, module_name: str) -> str:
 def make_tracer(task: Task) -> Callable:
     """Returns tracer to handle task execution, notifications, and error handling."""
 
-    def tracer(args: tuple = (), kwargs: dict | None = None) -> Any:
+    def trace(args: tuple = (), kwargs: dict | None = None) -> Any:
         """Executes the task while managing notifications and errors.
 
         Parameters
@@ -48,18 +48,17 @@ def make_tracer(task: Task) -> Callable:
         task.notify("on_begin", task_id=task_id)
 
         try:
-            # Run the task
             retval = task(*args, **kwargs)
         except Exception as exc:
             # Notify task failure
             task.notify("on_failure", task_id=task_id, exc=exc)
-            raise RuntimeError(f"Task {task_id} failed.") from exc
+            raise RuntimeError(f"Task {task_id} failed. Reason: {exc}") from exc
 
         # Notify task success
         task.notify("on_success", task_id=task_id, retval=retval)
         return retval
 
-    return tracer
+    return trace
 
 
 def task_from_callable(
@@ -112,7 +111,7 @@ class Signature:
 
         return self.n or NOp(Ops.CALL, wrapper)
 
-    def __call__(self, *args):
+    def __call__(self):
         return recursive_eval(self.node)
 
     def __or__(self, other: Signature) -> Signature:
@@ -149,7 +148,7 @@ class Task:
     def s(self, args: tuple = (), kwargs: dict | None = None) -> Signature:
         return Signature(self.apply, args, kwargs)
 
-    def apply(self, args: tuple = (), kwargs: dict | None = None) -> Any:
+    def apply(self, *args, **kwargs) -> Any:
         """Runs the task.
 
         Parameters
