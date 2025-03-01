@@ -18,6 +18,28 @@ def test_signature_composition_2():
     assert s4().eval().arg == 24
 
 
+def test_task_composition():
+
+    @task()
+    def initial_value():
+        return 10
+
+    @task()
+    def double(x):
+        return 2 * x
+
+    @task()
+    def triple(x):
+        return 3 * x
+
+    s1 = initial_value.s()
+    s2 = double.s()
+    s3 = triple.s()
+    s4 = s1 | s2 | s3
+
+    assert s4().eval().arg == 60
+
+
 def test_task_from_callable():
 
     @task()
